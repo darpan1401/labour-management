@@ -1,0 +1,91 @@
+name: Android APK Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    env:
+      APP_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Prepare build metadata
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const app = require('./app.json');
+          const buildNumber = Number(process.env.APP_BUILD_NUMBER);
+          const version = app.expo.version;
+
+          app.expo.android = app.expo.android || {};
+          app.expo.android.versionCode = buildNumber;
+          app.expo.extra = app.expo.extra || {};
+          app.expo.extra.appBuildNumber = String(buildNumber);
+
+          fs.writeFileSync('app.json', `${JSON.stringify(app, null, 2)}\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APK_NAME=labour-management-${buildNumber}.apk\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `RELEASE_TAG=android-v${version}-${buildNumber}\n`);
+          NODE
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK with EAS
+        run: eas build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+
+      - name: Download APK artifact
+        run: |
+          node <<'NODE' > apk-url.txt
+          const fs = require('fs');
+          const raw = fs.readFileSync('eas-build.json', 'utf8');
+          const parsed = JSON.parse(raw);
+          const build = Array.isArray(parsed) ? parsed[0] : parsed;
+          const url =
+            build?.artifacts?.buildUrl ||
+            build?.artifacts?.applicationArchiveUrl ||
+            build?.artifactUrl ||
+            build?.buildUrl;
+
+          if (!url) {
+            console.error('Could not find APK artifact URL in EAS output.');
+            process.exit(1);
+          }
+
+          process.stdout.write(url);
+          NODE
+          curl --fail --location "$(cat apk-url.txt)" --output "$APK_NAME"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" "$APK_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Labour Management $RELEASE_TAG" \
+            --notes "Please install the Latest App"
