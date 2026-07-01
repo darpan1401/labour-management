@@ -606,7 +606,7 @@ function canUseDevice(clients: ClientProfile[], client: ClientProfile, deviceId:
 
 function assertCanUseDevice(clients: ClientProfile[], client: ClientProfile, deviceId: string) {
   if (client.lastDeviceId && client.lastDeviceId !== deviceId) {
-    throw new Error('This user is already registered on another device. Contact Admin');
+    throw new Error('This user is already registered on another device. Contact Admin ');
   }
 
   const existingDeviceUser = clients.find(
