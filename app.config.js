@@ -1,15 +1,27 @@
 const baseConfig = require('./app.json');
 
-const baseBuildNumber = Number(baseConfig.expo.extra?.appBuildNumber || baseConfig.expo.android?.versionCode || 1);
-const buildNumber = Number(process.env.APP_BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || baseBuildNumber);
+const baseBuildNumber = Number(
+  baseConfig.expo.extra?.appBuildNumber ||
+  baseConfig.expo.android?.versionCode ||
+  1
+);
+
+const buildNumber = Number(
+  process.env.APP_BUILD_NUMBER ||
+  process.env.GITHUB_RUN_NUMBER ||
+  baseBuildNumber
+);
 
 module.exports = {
   ...baseConfig.expo,
+
   owner: 'darpan140601',
+
   android: {
     ...baseConfig.expo.android,
     versionCode: buildNumber,
   },
+
   extra: {
     ...baseConfig.expo.extra,
     appBuildNumber: String(buildNumber),
