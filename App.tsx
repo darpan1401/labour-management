@@ -1,8 +1,10 @@
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   NewClientInput,
@@ -605,6 +607,9 @@ function canUseDevice(clients: ClientProfile[], client: ClientProfile, deviceId:
 }
 
 function assertCanUseDevice(clients: ClientProfile[], client: ClientProfile, deviceId: string) {
+  // Admins are exempt from the single-device restriction and can log in from any device.
+  if (client.role === 'admin') return;
+
   if (client.lastDeviceId && client.lastDeviceId !== deviceId) {
     throw new Error('This user is already registered on another device. Contact Admin ');
   }
@@ -612,6 +617,7 @@ function assertCanUseDevice(clients: ClientProfile[], client: ClientProfile, dev
   const existingDeviceUser = clients.find(
     (currentClient) =>
       currentClient.active &&
+      currentClient.role !== 'admin' &&
       currentClient.userId !== client.userId &&
       currentClient.lastDeviceId === deviceId,
   );
@@ -643,18 +649,44 @@ async function checkForAppUpdate() {
   const apkAsset = Array.isArray(release?.assets)
     ? release.assets.find((asset: { name?: string }) => asset.name?.toLowerCase().endsWith('.apk'))
     : null;
-  const installUrl = apkAsset?.browser_download_url || release?.html_url;
-  if (!installUrl) return;
+  if (!apkAsset?.browser_download_url) return;
 
-  Alert.alert('Update Available', 'Please install the Latest App', [
+  Alert.alert('Update Available', 'Naya version download karke install karein?', [
     { text: 'Later', style: 'cancel' },
     {
       text: 'Install',
       onPress: () => {
-        Linking.openURL(installUrl).catch(() => {});
+        downloadAndInstallApk(apkAsset.browser_download_url).catch((error) => {
+          Alert.alert(
+            'Update Failed',
+            `APK download/install nahi ho paya: ${String(error?.message ?? error)}\n\nAgar "Install blocked" jaisa message aaye to Settings me is app ko "Install unknown apps" permission dein aur dobara try karein.`,
+          );
+        });
       },
     },
   ]);
+}
+
+async function downloadAndInstallApk(downloadUrl: string) {
+  const localUri = FileSystem.cacheDirectory + 'app-update.apk';
+
+  // Remove any leftover file from a previous attempt.
+  const existing = await FileSystem.getInfoAsync(localUri);
+  if (existing.exists) {
+    await FileSystem.deleteAsync(localUri, { idempotent: true });
+  }
+
+  const { uri } = await FileSystem.downloadAsync(downloadUrl, localUri);
+
+  // Android needs a content:// URI (via FileProvider) to open a local file
+  // for installation — a plain file:// path will be rejected on API 24+.
+  const contentUri = await FileSystem.getContentUriAsync(uri);
+
+  await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+    data: contentUri,
+    flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+    type: 'application/vnd.android.package-archive',
+  });
 }
 
 function getBuildNumberFromRelease(tagName?: string) {
