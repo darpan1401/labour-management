@@ -56,7 +56,7 @@ jobs:
           app.expo.extra.appBuildNumber = String(buildNumber);
 
           fs.writeFileSync('app.json', `${JSON.stringify(app, null, 2)}\n`);
-          fs.appendFileSync(process.env.GITHUB_ENV, `APK_NAME=labour-management-${buildNumber}.apk\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APK_NAME=labour-management.apk\n`);
           fs.appendFileSync(process.env.GITHUB_ENV, `RELEASE_TAG=android-v${version}-${buildNumber}\n`);
           NODE
 
