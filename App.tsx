@@ -651,7 +651,7 @@ async function checkForAppUpdate() {
     : null;
   if (!apkAsset?.browser_download_url) return;
 
-  Alert.alert('Update Available', 'Naya version download karke install karein?', [
+  Alert.alert('Update Available', 'Download New Version', [
     { text: 'Later', style: 'cancel' },
     {
       text: 'Install',
@@ -683,10 +683,10 @@ async function downloadAndInstallApk(downloadUrl: string) {
   const contentUri = await FileSystem.getContentUriAsync(uri);
 
   await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-    data: contentUri,
-    flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-    type: 'application/vnd.android.package-archive',
-  });
+  data: contentUri,
+  flags: 1,
+  type: 'application/vnd.android.package-archive',
+});
 }
 
 function getBuildNumberFromRelease(tagName?: string) {
