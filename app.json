@@ -2,7 +2,7 @@
   "expo": {
     "name": "Labour-Management",
     "slug": "Labour-Management",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.darpan1401.labourmanagement",
-      "versionCode": 1,
+      "versionCode": 7,
       "permissions": [
         "READ_CONTACTS",
         "REQUEST_INSTALL_PACKAGES"
@@ -44,7 +44,7 @@
       ]
     ],
     "extra": {
-      "appBuildNumber": "1",
+      "appBuildNumber": "7",
       "repositoryOwner": "darpan1401",
       "repositoryName": "labour-management"
     }

@@ -1,6 +1,6 @@
 {
   "name": "labour-management",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "main": "index.ts",
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",

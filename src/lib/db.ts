@@ -49,6 +49,19 @@ export async function clearStoredClientId(db: SQLite.SQLiteDatabase) {
   await db.runAsync('DELETE FROM app_settings WHERE key = ?', ['client_id']);
 }
 
+export async function getAppSetting(db: SQLite.SQLiteDatabase, key: string) {
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', [key]);
+  return row?.value ?? null;
+}
+
+export async function setAppSetting(db: SQLite.SQLiteDatabase, key: string, value: string) {
+  await saveSetting(db, key, value);
+}
+
+export async function deleteAppSetting(db: SQLite.SQLiteDatabase, key: string) {
+  await db.runAsync('DELETE FROM app_settings WHERE key = ?', [key]);
+}
+
 export async function getOrCreateDeviceId(db: SQLite.SQLiteDatabase) {
   const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', ['device_id']);
   if (row?.value) return row.value;

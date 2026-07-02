@@ -17,11 +17,14 @@ import {
 } from './src/lib/clients';
 import {
   clearStoredClientId,
+  deleteAppSetting,
+  getAppSetting,
   getOrCreateDeviceId,
   getLabours,
   getStoredClientId,
   openAppDatabase,
   saveStoredClientId,
+  setAppSetting,
 } from './src/lib/db';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { LaboursScreen } from './src/screens/LaboursScreen';
@@ -38,6 +41,15 @@ const updateCheckConfig = {
   owner: 'darpan1401',
   repo: 'labour-management',
 };
+
+const pendingUpdateBuildKey = 'pending_update_build';
+
+const androidIntentFlags = {
+  grantReadUriPermission: 1,
+  activityNewTask: 268435456,
+};
+
+const apkMimeType = 'application/vnd.android.package-archive';
 
 export default function App() {
   return (
@@ -56,10 +68,41 @@ function AppShell() {
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [profileOpen, setProfileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [updateCandidate, setUpdateCandidate] = useState<AppUpdateCandidate | null>(null);
+  const [updatePhase, setUpdatePhase] = useState<'idle' | 'available' | 'downloading' | 'launching' | 'error'>('idle');
+  const [updateMessage, setUpdateMessage] = useState('');
+  const currentBuildNumber = Number(Constants.expoConfig?.extra?.appBuildNumber ?? 0);
 
   useEffect(() => {
-    checkForAppUpdate().catch(() => {});
-  }, []);
+    fetchLatestAppUpdate(currentBuildNumber)
+      .then((candidate) => {
+        if (!candidate) return;
+        setUpdateCandidate(candidate);
+        setUpdatePhase('available');
+        setUpdateMessage(`Version ${candidate.buildNumber} is ready to install.`);
+      })
+      .catch(() => {});
+  }, [currentBuildNumber]);
+
+  useEffect(() => {
+    const database = db;
+    if (!database || !currentBuildNumber || !Number.isFinite(currentBuildNumber)) return;
+
+    async function confirmInstalledUpdate() {
+      const pendingBuildValue = await getAppSetting(database!, pendingUpdateBuildKey);
+      if (!pendingBuildValue) return;
+
+      const pendingBuild = Number(pendingBuildValue);
+      if (!Number.isFinite(pendingBuild) || pendingBuild <= 0) return;
+
+      if (currentBuildNumber > pendingBuild) {
+        await deleteAppSetting(database!, pendingUpdateBuildKey);
+        Alert.alert('Update installed', `Version ${currentBuildNumber} is now running.`);
+      }
+    }
+
+    confirmInstalledUpdate().catch(() => {});
+  }, [currentBuildNumber, db]);
 
   useEffect(() => {
     async function boot() {
@@ -142,22 +185,23 @@ function AppShell() {
     return <ReportsScreen db={db} labours={labours} client={client} />;
   }
 
-  async function activateClient(clientToActivate: ClientProfile) {
+  async function activateClient(clientToActivate: ClientProfile, latestClients?: ClientProfile[]) {
     if (!db) return;
     const deviceId = await getOrCreateDeviceId(db);
-    const latestClients = await loadClientsFromSheety();
-    const sourceClients = latestClients.length ? latestClients : clients;
+    const sourceClients = latestClients?.length ? latestClients : clients;
     const latestClient = findClientById(sourceClients, clientToActivate.id) ?? clientToActivate;
+    const activatedClient = { ...latestClient, lastDeviceId: deviceId, loggedIn: true };
 
     assertCanUseDevice(sourceClients, latestClient, deviceId);
-    await updateClientLoginState(latestClient, deviceId, true);
     await saveStoredClientId(db, latestClient.id);
     setClients(sourceClients.map((currentClient) =>
       currentClient.userId === latestClient.userId
-        ? { ...currentClient, lastDeviceId: deviceId, loggedIn: true }
+        ? activatedClient
         : currentClient,
     ));
-    setClient({ ...latestClient, lastDeviceId: deviceId, loggedIn: true });
+    setClient(activatedClient);
+
+    updateClientLoginState(latestClient, deviceId, true).catch(() => {});
   }
 
   async function logout() {
@@ -169,11 +213,20 @@ function AppShell() {
         style: 'destructive',
         onPress: async () => {
           const deviceId = await getOrCreateDeviceId(db);
-          if (client) await updateClientLoginState(client, deviceId, false);
           await clearStoredClientId(db);
           setProfileOpen(false);
           setActiveTab('dashboard');
           setClient(null);
+          if (client) {
+            setClients((currentClients) =>
+              currentClients.map((currentClient) =>
+                currentClient.userId === client.userId
+                  ? { ...currentClient, loggedIn: false }
+                  : currentClient,
+              ),
+            );
+            updateClientLoginState(client, deviceId, false).catch(() => {});
+          }
         },
       },
     ]);
@@ -196,6 +249,33 @@ function AppShell() {
     setClients(loadedClients);
   }
 
+  async function refreshClientsForLogin() {
+    const loadedClients = await loadClientsFromSheety({ throwOnError: true });
+    setClients(loadedClients);
+    return loadedClients;
+  }
+
+  async function installAvailableUpdate() {
+    if (!db || !updateCandidate) return;
+
+    setUpdatePhase('downloading');
+    setUpdateMessage('Downloading the APK...');
+
+    try {
+      await setAppSetting(db, pendingUpdateBuildKey, String(updateCandidate.buildNumber));
+      await downloadAndInstallApk(updateCandidate.downloadUrl);
+      setUpdatePhase('launching');
+      setUpdateMessage('Installer opened. Finish the install in the Android system screen.');
+    } catch (error: any) {
+      setUpdatePhase('error');
+      setUpdateMessage(`The APK could not be downloaded or installed: ${String(error?.message ?? error)}`);
+      Alert.alert(
+        'Update Failed',
+        `The APK could not be downloaded or installed: ${String(error?.message ?? error)}\n\nIf Android shows an install blocked message, open Settings, allow this app to install unknown apps, and try again.`,
+      );
+    }
+  }
+
   if (loading) {
     return (
       <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -206,7 +286,14 @@ function AppShell() {
   }
 
   if (!client) {
-    return <ActivationScreen clients={clients} dbReady={Boolean(db)} onActivated={activateClient} />;
+    return (
+      <ActivationScreen
+        clients={clients}
+        dbReady={Boolean(db)}
+        onRefreshClients={refreshClientsForLogin}
+        onActivated={activateClient}
+      />
+    );
   }
 
   if (client.role === 'admin') {
@@ -247,6 +334,15 @@ function AppShell() {
           </Pressable>
         ))}
       </View>
+      <UpdateModal
+        visible={Boolean(updateCandidate)}
+        buildNumber={updateCandidate?.buildNumber ?? 0}
+        currentBuildNumber={currentBuildNumber}
+        message={updateMessage}
+        phase={updatePhase}
+        onInstall={installAvailableUpdate}
+        onLater={() => setUpdateCandidate(null)}
+      />
       <ProfileModal
         visible={profileOpen}
         client={client}
@@ -260,11 +356,13 @@ function AppShell() {
 function ActivationScreen({
   clients,
   dbReady,
+  onRefreshClients,
   onActivated,
 }: {
   clients: ClientProfile[];
   dbReady: boolean;
-  onActivated: (client: ClientProfile) => Promise<void>;
+  onRefreshClients: () => Promise<ClientProfile[]>;
+  onActivated: (client: ClientProfile, latestClients?: ClientProfile[]) => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
   const [clientId, setClientId] = useState('');
@@ -273,17 +371,19 @@ function ActivationScreen({
   const [saving, setSaving] = useState(false);
 
   async function activate() {
-    const matchedClient = findClientByCredentials(clients, clientId, password);
-    if (!matchedClient) {
-      Alert.alert('Invalid login', 'Please enter the correct client ID and password.');
-      return;
-    }
-
     setSaving(true);
     try {
-      await onActivated(matchedClient);
+      const latestClients = await onRefreshClients();
+      const sourceClients = latestClients.length ? latestClients : clients;
+      const matchedClient = findClientByCredentials(sourceClients, clientId, password);
+      if (!matchedClient) {
+        Alert.alert('Invalid login', 'Please enter the correct client ID and password.');
+        return;
+      }
+
+      await onActivated(matchedClient, sourceClients);
     } catch (error: any) {
-      Alert.alert('Activation error', String(error?.message ?? error));
+      Alert.alert('Activation error', getLoginErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -368,6 +468,64 @@ function ProfileModal({
           <Pressable style={[styles.profileAction, styles.logoutButton]} onPress={onLogout}>
             <Text style={styles.logoutText}>Logout</Text>
           </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function UpdateModal({
+  visible,
+  buildNumber,
+  currentBuildNumber,
+  message,
+  phase,
+  onInstall,
+  onLater,
+}: {
+  visible: boolean;
+  buildNumber: number;
+  currentBuildNumber: number;
+  message: string;
+  phase: 'idle' | 'available' | 'downloading' | 'launching' | 'error';
+  onInstall: () => Promise<void>;
+  onLater: () => void;
+}) {
+  const isWorking = phase === 'downloading' || phase === 'launching';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={isWorking ? undefined : onLater}>
+      <View style={styles.updateBackdrop}>
+        <View style={styles.updateCard}>
+          <Text style={styles.updateKicker}>Update Available</Text>
+          <Text style={styles.updateTitle}>Install latest version</Text>
+          <Text style={styles.updateText}>Current build: {currentBuildNumber || '-'}</Text>
+          <Text style={styles.updateText}>Latest build: {buildNumber || '-'}</Text>
+          <Text style={styles.updateMessage}>{message || 'Tap Install to download the APK and open the Android installer.'}</Text>
+
+          {isWorking ? (
+            <View style={styles.updateWorkingRow}>
+              <ActivityIndicator size="small" color="#153D36" />
+              <Text style={styles.updateWorkingText}>{phase === 'downloading' ? 'Downloading...' : 'Opening installer...'}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.updateActions}>
+            {!isWorking ? (
+              <Pressable style={[styles.updateAction, styles.updateLaterButton]} onPress={onLater}>
+                <Text style={styles.updateLaterText}>Later</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={[styles.updateAction, styles.updateInstallButton, isWorking && styles.updateInstallButtonDisabled]}
+              onPress={onInstall}
+              disabled={isWorking}
+            >
+              <Text style={styles.updateInstallText}>
+                {phase === 'error' ? 'Try Again' : isWorking ? 'Working...' : 'Install'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -597,6 +755,15 @@ function formatSheetDate(value?: string) {
   return date.toLocaleString();
 }
 
+function getLoginErrorMessage(error: any) {
+  const message = String(error?.message ?? error);
+  if (/network|fetch|timed out|timeout|unable to load users|google sheet|api/i.test(message)) {
+    return 'Unable to connect to the user sheet. Please check your internet connection and try again.';
+  }
+
+  return message;
+}
+
 function canUseDevice(clients: ClientProfile[], client: ClientProfile, deviceId: string) {
   try {
     assertCanUseDevice(clients, client, deviceId);
@@ -627,9 +794,15 @@ function assertCanUseDevice(clients: ClientProfile[], client: ClientProfile, dev
   }
 }
 
-async function checkForAppUpdate() {
-  const currentBuildNumber = Number(Constants.expoConfig?.extra?.appBuildNumber ?? 0);
-  if (!Number.isFinite(currentBuildNumber) || currentBuildNumber <= 0) return;
+type AppUpdateCandidate = {
+  buildNumber: number;
+  downloadUrl: string;
+  assetName: string;
+  tagName: string;
+};
+
+async function fetchLatestAppUpdate(currentBuildNumber: number): Promise<AppUpdateCandidate | null> {
+  if (!Number.isFinite(currentBuildNumber) || currentBuildNumber <= 0) return null;
 
   const response = await fetch(
     `https://api.github.com/repos/${updateCheckConfig.owner}/${updateCheckConfig.repo}/releases/latest`,
@@ -640,31 +813,23 @@ async function checkForAppUpdate() {
     },
   );
 
-  if (!response.ok) return;
+  if (!response.ok) return null;
 
   const release = await response.json();
   const latestBuildNumber = getBuildNumberFromRelease(release?.tag_name);
-  if (!latestBuildNumber || latestBuildNumber <= currentBuildNumber) return;
+  if (!latestBuildNumber || latestBuildNumber <= currentBuildNumber) return null;
 
   const apkAsset = Array.isArray(release?.assets)
     ? release.assets.find((asset: { name?: string }) => asset.name?.toLowerCase().endsWith('.apk'))
     : null;
-  if (!apkAsset?.browser_download_url) return;
+  if (!apkAsset?.browser_download_url) return null;
 
-  Alert.alert('Update Available', 'Download New Version', [
-    { text: 'Later', style: 'cancel' },
-    {
-      text: 'Install',
-      onPress: () => {
-        downloadAndInstallApk(apkAsset.browser_download_url).catch((error) => {
-          Alert.alert(
-            'Update Failed',
-            `APK download/install nahi ho paya: ${String(error?.message ?? error)}\n\nAgar "Install blocked" jaisa message aaye to Settings me is app ko "Install unknown apps" permission dein aur dobara try karein.`,
-          );
-        });
-      },
-    },
-  ]);
+  return {
+    buildNumber: latestBuildNumber,
+    downloadUrl: apkAsset.browser_download_url,
+    assetName: String(apkAsset.name ?? 'app-update.apk'),
+    tagName: String(release?.tag_name ?? ''),
+  };
 }
 
 async function downloadAndInstallApk(downloadUrl: string) {
@@ -682,11 +847,25 @@ async function downloadAndInstallApk(downloadUrl: string) {
   // for installation — a plain file:// path will be rejected on API 24+.
   const contentUri = await FileSystem.getContentUriAsync(uri);
 
-  await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-  data: contentUri,
-  flags: 1,
-  type: 'application/vnd.android.package-archive',
-});
+  const flags = androidIntentFlags.grantReadUriPermission | androidIntentFlags.activityNewTask;
+
+  try {
+    await IntentLauncher.startActivityAsync('android.intent.action.INSTALL_PACKAGE', {
+      data: contentUri,
+      flags,
+      type: apkMimeType,
+      extra: {
+        'android.intent.extra.NOT_UNKNOWN_SOURCE': true,
+        'android.intent.extra.RETURN_RESULT': true,
+      },
+    });
+  } catch {
+    await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+      data: contentUri,
+      flags,
+      type: apkMimeType,
+    });
+  }
 }
 
 function getBuildNumberFromRelease(tagName?: string) {
@@ -997,5 +1176,83 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     color: '#17231F',
     marginBottom: 10,
+  },
+  updateBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(13, 28, 24, 0.68)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  updateCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#DCE5DF',
+  },
+  updateKicker: {
+    color: '#1E7A42',
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  updateTitle: {
+    color: '#0F1E1A',
+    fontSize: 24,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+  updateText: {
+    color: '#54645E',
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  updateMessage: {
+    color: '#22302C',
+    marginTop: 14,
+    lineHeight: 20,
+  },
+  updateWorkingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+  },
+  updateWorkingText: {
+    color: '#153D36',
+    fontWeight: '800',
+  },
+  updateActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  updateAction: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateLaterButton: {
+    backgroundColor: '#E9EFEA',
+  },
+  updateLaterText: {
+    color: '#153D36',
+    fontWeight: '900',
+  },
+  updateInstallButton: {
+    backgroundColor: '#153D36',
+  },
+  updateInstallButtonDisabled: {
+    backgroundColor: '#7E918A',
+  },
+  updateInstallText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
 });

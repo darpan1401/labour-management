@@ -1,6 +1,5 @@
 import { ClientProfile } from '../types';
-
-const sheetyClientsUrl = 'https://api.sheety.co/0e48fad6658810dd1abf0d491789e405/labourManagement/clients';
+import { clientsApiUrl } from './config';
 
 export type NewClientInput = {
   userId: string;
@@ -12,45 +11,36 @@ export type NewClientInput = {
   active: boolean;
 };
 
-export async function loadClientsFromSheety() {
+export async function loadClientsFromSheety(options: { throwOnError?: boolean } = {}) {
   try {
-    const response = await fetch(`${sheetyClientsUrl}?_=${Date.now()}`);
-    if (!response.ok) return [];
+    const payload = await requestClientsApi('list', { method: 'GET' });
+    const rows = Array.isArray(payload) ? payload : payload?.clients;
+    if (!Array.isArray(rows)) {
+      if (options.throwOnError) throw new Error('Google Sheet API returned an invalid users response.');
+      return [];
+    }
 
-    const payload = await response.json();
-    if (!payload || !Array.isArray(payload.clients)) return [];
-
-    return parseSheetyClients(payload.clients);
-  } catch {
+    return parseSheetyClients(rows);
+  } catch (error) {
+    if (options.throwOnError) throw error;
     return [];
   }
 }
 
 export async function addClientToSheety(client: NewClientInput) {
-  const response = await fetch(sheetyClientsUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  await requestClientsApi('add', {
+    client: {
+      user_id: client.userId,
+      login_id: client.loginId,
+      password: client.password,
+      contractor_name: client.contractorName,
+      phone_number: client.phoneNumber,
+      contractor_title: client.contractorTitle,
+      role: 'client',
+      active: client.active ? 1 : 0,
+      loggedIn: 0,
     },
-    body: JSON.stringify({
-      client: {
-        userId: client.userId,
-        loginId: client.loginId,
-        password: client.password,
-        contractorName: client.contractorName,
-        phoneNumber: client.phoneNumber,
-        contractorTitle: client.contractorTitle,
-        role: 'client',
-        active: client.active ? 1 : 0,
-        loggedIn: 0,
-      },
-    }),
   });
-
-  if (!response.ok) {
-    const detail = await readSheetyError(response);
-    throw new Error(detail || `Sheety add failed: ${response.status}`);
-  }
 }
 
 export async function updateClientLoginState(client: ClientProfile, deviceId: string, loggedIn: boolean) {
@@ -81,73 +71,125 @@ export async function updateClientActiveState(client: ClientProfile, active: boo
 }
 
 async function updateSheetyClient(sheetyObjectId: number, fields: Record<string, string | number>) {
-  const response = await fetch(`${sheetyClientsUrl}/${sheetyObjectId}`, {
-    method: 'PUT',
+  await requestClientsApi('update', {
+    id: sheetyObjectId,
+    client: fields,
+  });
+}
+
+async function requestClientsApi(
+  action: 'list' | 'add' | 'update' | 'delete',
+  body: Record<string, unknown> & { method?: 'GET' | 'POST' } = {},
+) {
+  const method = body.method ?? 'POST';
+  const response = await fetch(method === 'GET' ? buildApiUrl(action) : clientsApiUrl, {
+    method,
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      client: fields,
-    }),
+    ...(method === 'GET' ? {} : { body: JSON.stringify({ action, ...body }) }),
   });
 
-  if (!response.ok) {
-    const detail = await readSheetyError(response);
-    throw new Error(detail || `Sheety update failed: ${response.status}`);
+  const payload = await readApiJson(response);
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error || `Google Sheet API request failed: ${response.status}`);
   }
+
+  return payload;
 }
 
-async function readSheetyError(response: Response) {
+function buildApiUrl(action: string) {
+  return `${clientsApiUrl}?action=${encodeURIComponent(action)}&_=${Date.now()}`;
+}
+
+async function readApiJson(response: Response) {
+  const text = await response.text();
+  const cleanText = text.trim();
+  if (cleanText.startsWith('<')) {
+    if (cleanText.includes('Script function not found: doGet')) {
+      throw new Error('Google Apps Script deployment is not updated. Add doGet/doPost code and deploy a new web app version.');
+    }
+
+    if (response.url.includes('accounts.google.com') || cleanText.includes('ServiceLogin')) {
+      throw new Error('Google Apps Script returned a Google sign-in page. Use the public /exec web app URL, not the /dev URL.');
+    }
+
+    throw new Error('Google Apps Script returned an HTML page instead of JSON. Check the web app deployment access and URL.');
+  }
+
   try {
-    const payload = await response.json();
-    const detail = payload?.errors?.[0]?.detail;
-    return typeof detail === 'string' ? detail : '';
+    return JSON.parse(cleanText || '{}');
   } catch {
-    return '';
+    throw new Error('Google Sheet API returned invalid JSON.');
   }
 }
 
 export function findClientByCredentials(clients: ClientProfile[], id: string, password: string) {
-  const cleanId = id.trim().toLowerCase();
+  const cleanId = normalizeLoginValue(id);
+  const cleanPassword = stringValue(password);
   return (
-    clients.find((client) => client.active && client.id.toLowerCase() === cleanId && client.password === password.trim()) ??
+    clients.find(
+      (client) =>
+        client.active &&
+        (normalizeLoginValue(client.id) === cleanId || normalizeLoginValue(client.userId) === cleanId) &&
+        stringValue(client.password) === cleanPassword,
+    ) ??
     null
   );
 }
 
 export function findClientById(clients: ClientProfile[], id: string) {
-  const cleanId = id.trim().toLowerCase();
-  return clients.find((client) => client.id.toLowerCase() === cleanId) ?? null;
+  const cleanId = normalizeLoginValue(id);
+  return clients.find((client) => normalizeLoginValue(client.id) === cleanId) ?? null;
 }
 
 function parseSheetyClients(rows: Array<Record<string, unknown>>): ClientProfile[] {
   return rows
     .map((record) => {
-      const role = stringValue(record.role) === 'admin' ? 'admin' : 'client';
+      const role = readField(record, 'role').toLowerCase() === 'admin' ? 'admin' : 'client';
       return {
-        sheetyObjectId: parseSheetyObjectId(record.id),
-        userId: firstString(record.userId, record.user_id),
-        id: firstString(record.loginId, record.login_id),
-        password: stringValue(record.password),
-        contractorName: firstString(record.contractorName, record.contractor_name),
-        phoneNumber: firstString(record.phoneNumber, record.phone_number),
-        contractorTitle: firstString(record.contractorTitle, record.contractor_title),
+        sheetyObjectId: parseSheetyObjectId(readRawField(record, 'id')),
+        userId: readField(record, 'userId', 'user_id', 'user id', 'userid'),
+        id: readField(record, 'loginId', 'login_id', 'login id', 'clientId', 'client_id', 'client id', 'id'),
+        password: readField(record, 'password', 'pass'),
+        contractorName: readField(record, 'contractorName', 'contractor_name', 'contractor name', 'name'),
+        phoneNumber: readField(record, 'phoneNumber', 'phone_number', 'phone number', 'phone', 'mobile'),
+        contractorTitle: readField(record, 'contractorTitle', 'contractor_title', 'contractor title', 'title'),
         role,
-        active: parseActive(record.active),
-        lastLoginAt: firstString(record.lastLoginAt, record.last_login_at),
-        lastDeviceId: firstString(record.lastDeviceId, record.last_device_id),
-        loggedIn: parseBoolean(firstString(record.loggedIn, record.logged_in)),
+        active: parseActive(readRawField(record, 'active', 'status')),
+        lastLoginAt: readField(record, 'lastLoginAt', 'last_login_at', 'last login at'),
+        lastDeviceId: readField(record, 'lastDeviceId', 'last_device_id', 'last device id'),
+        loggedIn: parseBoolean(readField(record, 'loggedIn', 'logged_in', 'logged in')),
       } satisfies ClientProfile;
     })
     .filter((client) => client.userId && client.id && client.password && client.contractorName && client.contractorTitle);
 }
 
-function firstString(...values: unknown[]) {
-  return values.map(stringValue).find(Boolean) ?? '';
-}
-
 function stringValue(value: unknown) {
   return String(value ?? '').trim();
+}
+
+function readField(record: Record<string, unknown>, ...names: string[]) {
+  return stringValue(readRawField(record, ...names));
+}
+
+function readRawField(record: Record<string, unknown>, ...names: string[]) {
+  const keys = Object.keys(record);
+  for (const name of names) {
+    const normalizedName = normalizeColumnName(name);
+    const key = keys.find((recordKey) => normalizeColumnName(recordKey) === normalizedName);
+    if (key) return record[key];
+  }
+
+  return undefined;
+}
+
+function normalizeColumnName(value: string) {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function normalizeLoginValue(value: string) {
+  return stringValue(value).toLowerCase();
 }
 
 function parseActive(value: unknown) {
