@@ -1,3 +1,4 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
@@ -6,6 +7,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBar, BottomTabItem } from './src/components/BottomTabBar';
 import {
   NewClientInput,
   addClientToSheety,
@@ -26,15 +28,17 @@ import {
   saveStoredClientId,
   setAppSetting,
 } from './src/lib/db';
+import { AdminScreen } from './src/screens/AdminScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { LaboursScreen } from './src/screens/LaboursScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
+import { colors, radius, spacing, cardShadow } from './src/theme';
 import { ClientProfile, Labour, TabKey } from './src/types';
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'dashboard', label: 'Home' },
-  { key: 'labours', label: 'Labour' },
-  { key: 'reports', label: 'Report' },
+const tabs: Array<BottomTabItem<TabKey>> = [
+  { key: 'dashboard', label: 'Home', icon: 'home', iconOutline: 'home-outline' },
+  { key: 'labours', label: 'Labour', icon: 'people', iconOutline: 'people-outline' },
+  { key: 'reports', label: 'Report', icon: 'document-text', iconOutline: 'document-text-outline' },
 ];
 
 const updateCheckConfig = {
@@ -279,7 +283,7 @@ function AppShell() {
   if (loading) {
     return (
       <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="large" color="#153D36" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading Labour App...</Text>
       </View>
     );
@@ -313,27 +317,21 @@ function AppShell() {
       <StatusBar style="light" />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerText}>
-          <Text style={styles.company}>{client.contractorName}</Text>
+          {activeTab === 'dashboard' ? (
+            <Text style={styles.greeting}>
+              Hello, <Text style={styles.greetingName}>{getFirstName(client.contractorName)}</Text>
+            </Text>
+          ) : null}
           <Text style={styles.title}>{client.contractorTitle}</Text>
         </View>
         <Pressable style={styles.profileButton} onPress={() => setProfileOpen(true)}>
-          <Text style={styles.profileInitial}>{client.contractorName.charAt(0).toUpperCase()}</Text>
+          <MaterialCommunityIcons name="account-hard-hat" size={22} color={colors.accent} />
         </Pressable>
       </View>
 
       <View style={styles.body}>{renderTab()}</View>
 
-      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        {tabs.map((tab) => (
-          <Pressable
-            key={tab.key}
-            onPress={() => setActiveTab(tab.key)}
-            style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <BottomTabBar tabs={tabs} activeKey={activeTab} onChange={setActiveTab} bottomInset={insets.bottom} />
       <UpdateModal
         visible={Boolean(updateCandidate)}
         buildNumber={updateCandidate?.buildNumber ?? 0}
@@ -396,35 +394,48 @@ function ActivationScreen({
     >
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.activationScrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.activationLogoWrap}>
+          <View style={styles.activationLogoCircle}>
+            <MaterialCommunityIcons name="account-hard-hat" size={44} color={colors.accent} />
+          </View>
+        </View>
+
         <View style={styles.activationHeader}>
           <Text style={styles.activationKicker}>Client Activation</Text>
           <Text style={styles.activationTitle}>Crewmate</Text>
+          <Text style={styles.activationSubtitle}>Let's get you started</Text>
         </View>
 
         <View style={styles.activationBox}>
           <Text style={styles.activationLabel}>Client ID</Text>
-          <TextInput
-            value={clientId}
-            onChangeText={setClientId}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="Enter client ID"
-            placeholderTextColor="#6F7F79"
-            style={styles.activationInput}
-          />
+          <View style={styles.activationInputWrap}>
+            <Ionicons name="person-outline" size={18} color={colors.textMuted} />
+            <TextInput
+              value={clientId}
+              onChangeText={setClientId}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Enter client ID"
+              placeholderTextColor={colors.textMuted}
+              style={styles.activationInput}
+            />
+          </View>
 
           <Text style={styles.activationLabel}>Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!passwordVisible}
-            placeholder="Enter password"
-            placeholderTextColor="#6F7F79"
-            style={styles.activationInput}
-          />
-          <Pressable style={styles.passwordToggle} onPress={() => setPasswordVisible((visible) => !visible)}>
-            <Text style={styles.passwordToggleText}>{passwordVisible ? 'Hide Password' : 'Show Password'}</Text>
-          </Pressable>
+          <View style={styles.activationInputWrap}>
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+              placeholder="Enter password"
+              placeholderTextColor={colors.textMuted}
+              style={styles.activationInput}
+            />
+            <Pressable onPress={() => setPasswordVisible((visible) => !visible)}>
+              <Ionicons name={passwordVisible ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} />
+            </Pressable>
+          </View>
 
           <Pressable
             style={[styles.activateButton, (!dbReady || saving) && styles.activateButtonDisabled]}
@@ -432,6 +443,7 @@ function ActivationScreen({
             disabled={!dbReady || saving}
           >
             <Text style={styles.activateText}>{saving ? 'Activating...' : 'Activate App'}</Text>
+            {!saving ? <Ionicons name="arrow-forward" size={18} color="#FFFFFF" /> : null}
           </Pressable>
         </View>
       </ScrollView>
@@ -439,7 +451,7 @@ function ActivationScreen({
       {saving ? (
         <View style={styles.activationLoadingOverlay} pointerEvents="auto">
           <View style={styles.activationLoadingCard}>
-            <ActivityIndicator size="large" color="#153D36" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.activationLoadingText}>Logging in...</Text>
           </View>
         </View>
@@ -464,9 +476,14 @@ function ProfileModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <Text style={styles.profileTitle}>Profile</Text>
-            <Pressable onPress={onClose}>
-              <Text style={styles.closeText}>Close</Text>
+            <View style={styles.profileHeaderLeft}>
+              <View style={styles.profileHeaderIcon}>
+                <MaterialCommunityIcons name="account-hard-hat" size={20} color={colors.accent} />
+              </View>
+              <Text style={styles.profileTitle}>Profile</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={18} color={colors.primary} />
             </Pressable>
           </View>
 
@@ -480,6 +497,7 @@ function ProfileModal({
           <Text style={styles.profileValue}>{client.id}</Text>
 
           <Pressable style={[styles.profileAction, styles.logoutButton]} onPress={onLogout}>
+            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
             <Text style={styles.logoutText}>Logout</Text>
           </Pressable>
         </View>
@@ -511,7 +529,10 @@ function UpdateModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={isWorking ? undefined : onLater}>
       <View style={styles.updateBackdrop}>
         <View style={styles.updateCard}>
-          <Text style={styles.updateKicker}>Update Available</Text>
+          <View style={styles.updateKickerRow}>
+            <Ionicons name="cloud-download-outline" size={14} color={colors.success} />
+            <Text style={styles.updateKicker}>Update Available</Text>
+          </View>
           <Text style={styles.updateTitle}>Install latest version</Text>
           <Text style={styles.updateText}>Current build: {currentBuildNumber || '-'}</Text>
           <Text style={styles.updateText}>Latest build: {buildNumber || '-'}</Text>
@@ -519,7 +540,7 @@ function UpdateModal({
 
           {isWorking ? (
             <View style={styles.updateWorkingRow}>
-              <ActivityIndicator size="small" color="#153D36" />
+              <ActivityIndicator size="small" color={colors.primary} />
               <Text style={styles.updateWorkingText}>{phase === 'downloading' ? 'Downloading...' : 'Opening installer...'}</Text>
             </View>
           ) : null}
@@ -535,6 +556,7 @@ function UpdateModal({
               onPress={onInstall}
               disabled={isWorking}
             >
+              <Ionicons name={phase === 'error' ? 'refresh' : 'download-outline'} size={16} color="#FFFFFF" />
               <Text style={styles.updateInstallText}>
                 {phase === 'error' ? 'Try Again' : isWorking ? 'Working...' : 'Install'}
               </Text>
@@ -546,240 +568,17 @@ function UpdateModal({
   );
 }
 
-function AdminScreen({
-  clients,
-  currentAdmin,
-  onAddClient,
-  onToggleClientActive,
-  onLogout,
-}: {
-  clients: ClientProfile[];
-  currentAdmin: ClientProfile;
-  onAddClient: (client: NewClientInput) => Promise<void>;
-  onToggleClientActive: (client: ClientProfile, active: boolean) => Promise<void>;
-  onLogout: () => Promise<void>;
-}) {
-  const insets = useSafeAreaInsets();
-  const [search, setSearch] = useState('');
-  const [addUserOpen, setAddUserOpen] = useState(false);
-  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
-  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
-  const cleanSearch = search.trim().toLowerCase();
-  const clientRows = clients
-    .filter((client) => client.role === 'client')
-    .filter((client) => {
-      if (!cleanSearch) return true;
-      return [client.contractorName, client.userId, client.id, client.phoneNumber, client.contractorTitle]
-        .join(' ')
-        .toLowerCase()
-        .includes(cleanSearch);
-    });
-
-  async function toggleActive(item: ClientProfile, active: boolean) {
-    setActiveOverrides((currentOverrides) => ({ ...currentOverrides, [item.userId]: active }));
-    setUpdatingUserId(item.userId);
-    try {
-      await onToggleClientActive(item, active);
-      setActiveOverrides((currentOverrides) => {
-        const nextOverrides = { ...currentOverrides };
-        delete nextOverrides[item.userId];
-        return nextOverrides;
-      });
-    } catch (error: any) {
-      setActiveOverrides((currentOverrides) => {
-        const nextOverrides = { ...currentOverrides };
-        delete nextOverrides[item.userId];
-        return nextOverrides;
-      });
-      Alert.alert('Update failed', String(error?.message ?? error));
-    } finally {
-      setUpdatingUserId(null);
-    }
-  }
-
-  return (
-    <View style={styles.safeArea}>
-      <StatusBar style="light" />
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.headerText}>
-          <Text style={styles.company}>{currentAdmin.contractorName}</Text>
-          <Text style={styles.title}>Admin Dashboard</Text>
-        </View>
-        <Pressable style={styles.profileButton} onPress={onLogout}>
-          <Text style={styles.profileInitial}>A</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.adminBody}>
-        <View style={styles.adminToolbar}>
-          <Text style={styles.adminTitle}>Sheet Users</Text>
-          <Pressable style={styles.adminAddButton} onPress={() => setAddUserOpen(true)}>
-            <Text style={styles.adminAddText}>Add User</Text>
-          </Pressable>
-        </View>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="Search user"
-          placeholderTextColor="#6F7F79"
-          style={styles.adminSearch}
-        />
-        <FlatList
-          data={clientRows}
-          keyExtractor={(item) => item.userId}
-          ListEmptyComponent={<Text style={styles.adminEmpty}>No client users found.</Text>}
-          renderItem={({ item }) => {
-            const isActive = activeOverrides[item.userId] ?? item.active;
-            const isLoggedIn = isActive ? item.loggedIn : false;
-
-            return (
-              <View style={styles.adminRow}>
-                <Text style={styles.adminName}>{item.contractorName}</Text>
-                <Text style={styles.adminMeta}>{item.userId}</Text>
-                <Text style={styles.adminMeta}>{item.id}</Text>
-                <Text style={styles.adminMeta}>{item.contractorTitle}</Text>
-                <Text style={styles.adminMeta}>{item.phoneNumber || '-'}</Text>
-                <View style={styles.adminToggleRow}>
-                  <Text style={isActive ? styles.adminActive : styles.adminInactive}>
-                    Active: {isActive ? '1' : '0'}
-                  </Text>
-                  <Switch
-                    value={isActive}
-                    onValueChange={(nextValue) => toggleActive(item, nextValue)}
-                    disabled={updatingUserId === item.userId}
-                    trackColor={{ false: '#E8C5BF', true: '#BFD9C8' }}
-                    thumbColor={isActive ? '#1E7A42' : '#B7352C'}
-                  />
-                </View>
-                <Text style={styles.adminMeta}>{isLoggedIn ? 'Logged in' : 'Not logged in'}</Text>
-                <Text style={styles.adminMeta}>{item.lastDeviceId || 'No device registered'}</Text>
-                <Text style={styles.adminMeta}>{formatSheetDate(item.lastLoginAt)}</Text>
-                <Text style={styles.adminNote}>Users sync from Google Sheet when online.</Text>
-              </View>
-            );
-          }}
-        />
-      </View>
-      <AddUserModal
-        visible={addUserOpen}
-        onClose={() => setAddUserOpen(false)}
-        onAdd={onAddClient}
-      />
-    </View>
-  );
-}
-
-function AddUserModal({
-  visible,
-  onClose,
-  onAdd,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onAdd: (client: NewClientInput) => Promise<void>;
-}) {
-  const [userId, setUserId] = useState('');
-  const [loginId, setLoginId] = useState('');
-  const [password, setPassword] = useState('');
-  const [contractorName, setContractorName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [contractorTitle, setContractorTitle] = useState('');
-  const [active, setActive] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  function resetForm() {
-    setUserId('');
-    setLoginId('');
-    setPassword('');
-    setContractorName('');
-    setPhoneNumber('');
-    setContractorTitle('');
-    setActive(true);
-  }
-
-  async function submit() {
-    if (!userId.trim() || !loginId.trim() || !password.trim() || !contractorName.trim() || !contractorTitle.trim()) {
-      Alert.alert('Missing details', 'Please fill user ID, login ID, password, contractor name and contractor title.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await onAdd({
-        userId: userId.trim(),
-        loginId: loginId.trim(),
-        password: password.trim(),
-        contractorName: contractorName.trim(),
-        phoneNumber: phoneNumber.trim(),
-        contractorTitle: contractorTitle.trim(),
-        active,
-      });
-      resetForm();
-      onClose();
-    } catch (error: any) {
-      Alert.alert('Add user failed', String(error?.message ?? error));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <KeyboardAvoidingView style={styles.modalKeyboardWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
-            <View style={styles.profileCard}>
-              <View style={styles.profileHeader}>
-                <Text style={styles.profileTitle}>Add User</Text>
-                <Pressable onPress={onClose}>
-                  <Text style={styles.closeText}>Close</Text>
-                </Pressable>
-              </View>
-
-              <TextInput value={userId} onChangeText={setUserId} placeholder="User Id" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-              <TextInput value={loginId} onChangeText={setLoginId} placeholder="Login ID" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-              <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-              <TextInput value={contractorName} onChangeText={setContractorName} placeholder="Contractor Name" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-              <TextInput value={phoneNumber} onChangeText={setPhoneNumber} placeholder="Phone Number" placeholderTextColor="#6F7F79" keyboardType="phone-pad" style={styles.addUserInput} />
-              <TextInput value={contractorTitle} onChangeText={setContractorTitle} placeholder="Contractor Title" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-
-              <View style={styles.adminToggleRow}>
-                <Text style={active ? styles.adminActive : styles.adminInactive}>Active: {active ? '1' : '0'}</Text>
-                <Switch
-                  value={active}
-                  onValueChange={setActive}
-                  trackColor={{ false: '#E8C5BF', true: '#BFD9C8' }}
-                  thumbColor={active ? '#1E7A42' : '#B7352C'}
-                />
-              </View>
-
-              <Pressable style={[styles.profileAction, saving && styles.activateButtonDisabled]} onPress={submit} disabled={saving}>
-                <Text style={styles.profileActionText}>{saving ? 'Adding...' : 'Add Client User'}</Text>
-              </Pressable>
-
-              {saving ? (
-                <View style={styles.addUserLoadingOverlay} pointerEvents="auto">
-                  <View style={styles.activationLoadingCard}>
-                    <ActivityIndicator size="large" color="#153D36" />
-                    <Text style={styles.activationLoadingText}>Adding user...</Text>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-}
-
 function formatSheetDate(value?: string) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function getFirstName(fullName: string) {
+  const trimmed = (fullName || '').trim();
+  if (!trimmed) return 'there';
+  return trimmed.split(/\s+/)[0];
 }
 
 function getLoginErrorMessage(error: any) {
@@ -906,92 +705,101 @@ function getBuildNumberFromRelease(tagName?: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#153D36',
+    backgroundColor: colors.primary,
   },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F6F1',
+    backgroundColor: colors.background,
   },
   loadingText: {
-    color: '#596A63',
+    color: colors.textSecondary,
     marginTop: 12,
     fontWeight: '800',
   },
   header: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingTop: 10,
     paddingBottom: 14,
-    backgroundColor: '#153D36',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   headerText: {
     flex: 1,
     minWidth: 0,
   },
-  company: {
+  greeting: {
     color: '#D9E8C6',
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  greetingName: {
+    color: colors.accent,
     fontWeight: '900',
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     marginTop: 4,
   },
   body: {
     flex: 1,
-    backgroundColor: '#F3F6F1',
+    backgroundColor: colors.background,
   },
   tabBar: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
     padding: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#D9E2DD',
+    borderTopColor: colors.border,
   },
   tabButton: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 8,
+    minHeight: 56,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFF4F1',
+    gap: 4,
   },
-  tabButtonActive: {
-    backgroundColor: '#153D36',
+  tabIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconWrapActive: {
+    backgroundColor: colors.accent,
   },
   tabText: {
-    color: '#53645D',
-    fontWeight: '900',
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: colors.accent,
   },
   profileButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#D9E8C6',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileInitial: {
-    color: '#153D36',
-    fontSize: 18,
-    fontWeight: '900',
-  },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
-    padding: 18,
+    padding: spacing.lg,
   },
   modalKeyboardWrap: {
     flex: 1,
@@ -1001,235 +809,177 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    ...cardShadow,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+  },
+  profileHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  profileHeaderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileTitle: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '900',
   },
-  closeText: {
-    color: '#153D36',
-    fontWeight: '900',
+  closeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipInactiveBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileLabel: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',
     marginTop: 10,
   },
   profileValue: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 2,
   },
   profileAction: {
-    minHeight: 46,
-    borderRadius: 8,
-    backgroundColor: '#EEF4EC',
+    minHeight: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.chipInactiveBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
-  },
-  profileActionText: {
-    color: '#153D36',
-    fontWeight: '900',
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    gap: 8,
   },
   logoutButton: {
-    backgroundColor: '#FBE9E7',
+    backgroundColor: colors.dangerBg,
     marginTop: 10,
   },
   logoutText: {
-    color: '#B7352C',
+    color: colors.danger,
     fontWeight: '900',
-  },
-  adminBody: {
-    flex: 1,
-    backgroundColor: '#F3F6F1',
-    padding: 14,
-  },
-  adminToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  adminTitle: {
-    color: '#17231F',
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  adminAddButton: {
-    minHeight: 40,
-    borderRadius: 8,
-    backgroundColor: '#153D36',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-  },
-  adminAddText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-  adminSearch: {
-    minHeight: 46,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    color: '#17231F',
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  adminRow: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D7E0DA',
-    padding: 14,
-    marginBottom: 10,
-  },
-  adminName: {
-    color: '#17231F',
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  adminMeta: {
-    color: '#53645D',
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  adminToggleRow: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-    gap: 12,
-  },
-  adminActive: {
-    color: '#1E7A42',
-    fontWeight: '900',
-  },
-  adminInactive: {
-    color: '#B7352C',
-    fontWeight: '900',
-  },
-  adminNote: {
-    color: '#B57912',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 8,
-  },
-  adminEmpty: {
-    color: '#687871',
-    textAlign: 'center',
-    padding: 18,
   },
   activationScreen: {
     flex: 1,
-    backgroundColor: '#153D36',
-    paddingHorizontal: 18,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
   },
   activationScrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
   },
+  activationLogoWrap: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  activationLogoCircle: {
+    width: 92,
+    height: 92,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   activationHeader: {
-    marginBottom: 18,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
   activationKicker: {
-    color: '#D9E8C6',
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   activationTitle: {
     color: '#FFFFFF',
-    fontSize: 30,
+    fontSize: 34,
     fontWeight: '900',
     marginTop: 6,
   },
+  activationSubtitle: {
+    color: '#C7DAD3',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   activationBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    ...cardShadow,
   },
   activationLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(243, 246, 241, 0.82)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
+    padding: spacing.lg,
   },
   activationLoadingCard: {
     minWidth: 160,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
     paddingHorizontal: 22,
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
+    ...cardShadow,
   },
   activationLoadingText: {
-    color: '#153D36',
+    color: colors.primary,
     fontWeight: '900',
     marginTop: 12,
   },
-  addUserLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(243, 246, 241, 0.82)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    borderRadius: 8,
-  },
   activationLabel: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontWeight: '900',
     marginBottom: 6,
   },
-  activationInput: {
-    minHeight: 48,
-    borderRadius: 8,
+  activationInputWrap: {
+    minHeight: 50,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    color: '#17231F',
-    marginBottom: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  passwordToggle: {
-    alignSelf: 'flex-end',
-    marginTop: -4,
-    marginBottom: 12,
-  },
-  passwordToggleText: {
-    color: '#153D36',
-    fontWeight: '900',
+  activationInput: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   activateButton: {
-    minHeight: 48,
-    borderRadius: 8,
-    backgroundColor: '#153D36',
+    minHeight: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+    flexDirection: 'row',
+    gap: 8,
   },
   activateButtonDisabled: {
     backgroundColor: '#8FA19A',
@@ -1238,52 +988,48 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '900',
   },
-  addUserInput: {
-    minHeight: 46,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    color: '#17231F',
-    marginBottom: 10,
-  },
   updateBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(13, 28, 24, 0.68)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   updateCard: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: '#DCE5DF',
+    borderColor: colors.borderLight,
+    ...cardShadow,
+  },
+  updateKickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   updateKicker: {
-    color: '#1E7A42',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   updateTitle: {
-    color: '#0F1E1A',
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '900',
     marginTop: 6,
   },
   updateText: {
-    color: '#54645E',
+    color: colors.textSecondary,
     fontWeight: '700',
     marginTop: 8,
   },
   updateMessage: {
-    color: '#22302C',
+    color: colors.textPrimary,
     marginTop: 14,
     lineHeight: 20,
   },
@@ -1294,30 +1040,32 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   updateWorkingText: {
-    color: '#153D36',
+    color: colors.primary,
     fontWeight: '800',
   },
   updateActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   updateAction: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   updateLaterButton: {
-    backgroundColor: '#E9EFEA',
+    backgroundColor: colors.chipInactiveBg,
   },
   updateLaterText: {
-    color: '#153D36',
+    color: colors.primary,
     fontWeight: '900',
   },
   updateInstallButton: {
-    backgroundColor: '#153D36',
+    backgroundColor: colors.primary,
   },
   updateInstallButtonDisabled: {
     backgroundColor: '#7E918A',

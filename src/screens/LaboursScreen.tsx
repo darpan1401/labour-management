@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import * as SQLite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,6 +7,7 @@ import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, Scro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addLabour, deleteLabour, getAttendanceForDate, saveAttendance } from '../lib/db';
 import { attendanceOptions, cleanPhone, dateFromKey, formatDate, normalize } from '../lib/format';
+import { colors, radius, spacing, cardShadow } from '../theme';
 import { AttendanceStatus, Labour } from '../types';
 
 type ContactCandidate = {
@@ -127,15 +129,18 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.topBar}>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search labour name or number"
-          placeholderTextColor="#6F7F79"
-          style={styles.search}
-        />
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search labour name or number"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+          />
+        </View>
         <Pressable style={styles.addButton} onPress={openContacts}>
-          <Text style={styles.addText}>+</Text>
+          <Ionicons name="add" size={26} color="#FFFFFF" />
         </Pressable>
       </View>
 
@@ -143,7 +148,12 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
         data={filteredLabours}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={filteredLabours.length ? undefined : styles.emptyWrap}
-        ListEmptyComponent={<Text style={styles.empty}>Tap + to add labour from contacts.</Text>}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Ionicons name="person-add-outline" size={28} color={colors.textMuted} />
+            <Text style={styles.emptyText}>Tap + to add labour from contacts.</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <Pressable style={styles.labourCard} onPress={() => openMarking(item)}>
             <View style={styles.avatar}>
@@ -154,6 +164,7 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
               <Text numberOfLines={1} style={styles.phone}>{item.phone}</Text>
             </View>
             <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+              <Ionicons name="trash-outline" size={14} color={colors.danger} />
               <Text style={styles.deleteText}>Delete</Text>
             </Pressable>
           </Pressable>
@@ -167,25 +178,34 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
         >
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Contact</Text>
-            <Pressable onPress={() => setContactModal(false)}>
-              <Text style={styles.closeText}>Close</Text>
+            <Pressable style={styles.closeButton} onPress={() => setContactModal(false)}>
+              <Ionicons name="close" size={20} color={colors.primary} />
             </Pressable>
           </View>
-          <TextInput
-            value={contactSearch}
-            onChangeText={setContactSearch}
-            placeholder="Search contact name or number"
-            placeholderTextColor="#6F7F79"
-            style={styles.search}
-          />
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              value={contactSearch}
+              onChangeText={setContactSearch}
+              placeholder="Search contact name or number"
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+            />
+          </View>
           <FlatList
             data={filteredContacts}
             keyExtractor={(item, index) => `${item.phone}-${index}`}
             ListEmptyComponent={<Text style={styles.empty}>No contact found.</Text>}
             renderItem={({ item }) => (
               <Pressable style={styles.contactRow} onPress={() => selectContact(item)}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.phone}>{item.phone}</Text>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.labourInfo}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.phone}>{item.phone}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
             )}
           />
@@ -196,14 +216,27 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
         <View style={styles.backdrop}>
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.markingBox}>
-              <Text style={styles.modalTitle}>{markingLabour?.name}</Text>
-              <Text style={styles.phone}>{markingLabour?.phone}</Text>
-              <Pressable style={styles.dateButton} onPress={() => setShowMarkCalendar(true)}>
-                <View>
-                  <Text style={styles.dateLabel}>Attendance Date</Text>
-                  <Text style={styles.dateValue}>{markDate}</Text>
+              <View style={styles.markingHeaderRow}>
+                <View style={styles.avatarLg}>
+                  <Text style={styles.avatarLgText}>{markingLabour?.name.charAt(0).toUpperCase()}</Text>
                 </View>
-                <Text style={styles.calendarIcon}>Choose</Text>
+                <View style={styles.labourInfo}>
+                  <Text style={styles.modalTitle}>{markingLabour?.name}</Text>
+                  <Text style={styles.phone}>{markingLabour?.phone}</Text>
+                </View>
+              </View>
+
+              <Pressable style={styles.dateButton} onPress={() => setShowMarkCalendar(true)}>
+                <View style={styles.dateButtonLeft}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                  <View>
+                    <Text style={styles.dateLabel}>Attendance Date</Text>
+                    <Text style={styles.dateValue}>{markDate}</Text>
+                  </View>
+                </View>
+                <View style={styles.chooseChip}>
+                  <Text style={styles.calendarIcon}>Choose</Text>
+                </View>
               </Pressable>
               {showMarkCalendar && (
                 <DateTimePicker
@@ -213,30 +246,38 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
                   onChange={handleMarkDateChange}
                 />
               )}
-              <View style={styles.optionWrap}>
-                {attendanceOptions.map((option) => (
-                  <Pressable
-                    key={option.value}
-                    style={[styles.option, status === option.value && styles.optionActive]}
-                    onPress={() => setStatus(option.value)}
-                  >
-                    <Text style={[styles.optionText, status === option.value && styles.optionTextActive]}>{option.label}</Text>
-                  </Pressable>
-                ))}
+              <View style={styles.optionGrid}>
+                {attendanceOptions.map((option) => {
+                  const active = status === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[styles.option, active && styles.optionActive]}
+                      onPress={() => setStatus(option.value)}
+                    >
+                      {active ? <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" /> : null}
+                      <Text style={[styles.optionText, active && styles.optionTextActive]}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <TextInput
-                value={advance}
-                onChangeText={setAdvance}
-                keyboardType="numeric"
-                placeholder="Advance amount"
-                placeholderTextColor="#6F7F79"
-                style={styles.input}
-              />
+              <View style={styles.inputWrap}>
+                <Ionicons name="cash-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  value={advance}
+                  onChangeText={setAdvance}
+                  keyboardType="numeric"
+                  placeholder="Advance amount (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.input}
+                />
+              </View>
               <View style={styles.actionRow}>
                 <Pressable style={styles.cancelButton} onPress={() => setMarkingLabour(null)}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
                 <Pressable style={styles.saveButton} onPress={saveMarking}>
+                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
                   <Text style={styles.saveText}>Save</Text>
                 </Pressable>
               </View>
@@ -251,100 +292,126 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F3F6F1',
-    padding: 14,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   topBar: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  search: {
+  searchWrap: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    color: '#17231F',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   addButton: {
     width: 50,
     minHeight: 48,
-    borderRadius: 8,
-    backgroundColor: '#153D36',
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  addText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '600',
-    marginTop: -2,
+    ...cardShadow,
   },
   labourCard: {
-    minHeight: 72,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#D7E0DA',
-    padding: 12,
-    marginBottom: 10,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...cardShadow,
   },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#CBE0B8',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#153D36',
+    color: colors.accentDark,
     fontWeight: '900',
+  },
+  avatarLg: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLgText: {
+    color: colors.accentDark,
+    fontWeight: '900',
+    fontSize: 18,
   },
   labourInfo: {
     flex: 1,
     minWidth: 0,
   },
   name: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '900',
   },
   phone: {
-    color: '#66756F',
+    color: colors.textSecondary,
     marginTop: 3,
+    fontWeight: '600',
   },
   deleteButton: {
     minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#D85A4F',
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.dangerBg,
     justifyContent: 'center',
   },
   deleteText: {
-    color: '#B7352C',
+    color: colors.danger,
     fontWeight: '800',
+    fontSize: 13,
   },
   emptyWrap: {
     flexGrow: 1,
     justifyContent: 'center',
   },
   empty: {
-    color: '#687871',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  emptyText: {
+    color: colors.textMuted,
     textAlign: 'center',
-    padding: 18,
   },
   modal: {
     flex: 1,
-    backgroundColor: '#F3F6F1',
-    padding: 14,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   modalScrollContent: {
     flexGrow: 1,
@@ -354,94 +421,131 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   modalTitle: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '900',
   },
-  closeText: {
-    color: '#153D36',
-    fontWeight: '900',
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipInactiveBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contactRow: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#D7E0DA',
-    padding: 14,
-    marginBottom: 8,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
-    padding: 18,
+    padding: spacing.lg,
   },
   markingBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    ...cardShadow,
+  },
+  markingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
   dateButton: {
-    minHeight: 56,
-    borderRadius: 8,
+    minHeight: 58,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#F7FAF8',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  dateButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   dateLabel: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',
   },
   dateValue: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 2,
   },
+  chooseChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
+  },
   calendarIcon: {
-    color: '#153D36',
+    color: colors.accentDark,
     fontWeight: '900',
+    fontSize: 12,
   },
   input: {
-    minHeight: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD8D2',
-    paddingHorizontal: 12,
-    marginTop: 12,
-    color: '#153D36',
+    flex: 1,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
-  optionWrap: {
+  inputWrap: {
+    minHeight: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  optionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   option: {
-    minHeight: 42,
-    borderRadius: 8,
+    width: '48%',
+    minHeight: 46,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    paddingHorizontal: 12,
+    borderColor: colors.border,
     justifyContent: 'center',
-    backgroundColor: '#F7FAF8',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: colors.background,
   },
   optionActive: {
-    backgroundColor: '#153D36',
-    borderColor: '#153D36',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   optionText: {
-    color: '#44574F',
+    color: colors.textSecondary,
     fontWeight: '800',
   },
   optionTextActive: {
@@ -449,28 +553,30 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   cancelButton: {
     flex: 1,
-    minHeight: 46,
-    borderRadius: 8,
+    minHeight: 48,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButton: {
     flex: 1,
-    minHeight: 46,
-    borderRadius: 8,
-    backgroundColor: '#153D36',
+    minHeight: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   cancelText: {
-    color: '#52625B',
+    color: colors.textSecondary,
     fontWeight: '900',
   },
   saveText: {

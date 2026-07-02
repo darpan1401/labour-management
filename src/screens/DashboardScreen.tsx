@@ -1,4 +1,6 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing, cardShadow } from '../theme';
 import { ClientProfile, Labour } from '../types';
 
 type Props = {
@@ -10,18 +12,44 @@ export function DashboardScreen({ labours, client }: Props) {
   return (
     <View style={styles.screen}>
       <View style={styles.hero}>
-        <Text style={styles.kicker}>{client.contractorName}</Text>
-        <Text style={styles.title}>{client.contractorTitle}</Text>
-        <Text style={styles.subtitle}>Total labourers added</Text>
-        <Text style={styles.count}>{labours.length}</Text>
+        <View style={styles.heroTop}>
+          <View style={styles.heroIconWrap}>
+            <MaterialCommunityIcons name="account-hard-hat" size={26} color={colors.accent} />
+          </View>
+          <View style={styles.heroTextWrap}>
+            <Text style={styles.heroSubtitle}>Keep your team updated</Text>
+            <Text style={styles.heroCount}>{labours.length}</Text>
+          </View>
+        </View>
+        <Text style={styles.heroLabel}>Total Labourers Added</Text>
+        <MaterialCommunityIcons
+          name="account-hard-hat"
+          size={110}
+          color="rgba(255,255,255,0.08)"
+          style={styles.heroWatermark}
+        />
       </View>
 
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Added Labourers</Text>
+        <View style={styles.panelHeader}>
+          <View>
+            <Text style={styles.panelTitle}>Added Labourers</Text>
+            <View style={styles.panelUnderline} />
+          </View>
+          <View style={styles.panelCountBadge}>
+            <Text style={styles.panelCountText}>{labours.length}</Text>
+          </View>
+        </View>
         <FlatList
           data={labours}
           keyExtractor={(item) => String(item.id)}
-          ListEmptyComponent={<Text style={styles.empty}>No labourers have been added yet.</Text>}
+          contentContainerStyle={labours.length ? undefined : styles.emptyWrap}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="people-outline" size={30} color={colors.textMuted} />
+              <Text style={styles.emptyText}>No labourers have been added yet.</Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.row}>
               <View style={styles.avatar}>
@@ -31,6 +59,7 @@ export function DashboardScreen({ labours, client }: Props) {
                 <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
                 <Text numberOfLines={1} style={styles.phone}>{item.phone}</Text>
               </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </View>
           )}
         />
@@ -42,77 +71,131 @@ export function DashboardScreen({ labours, client }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F3F6F1',
-    padding: 16,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   hero: {
-    backgroundColor: '#153D36',
-    borderRadius: 8,
-    padding: 18,
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    overflow: 'hidden',
+    ...cardShadow,
   },
-  kicker: {
-    color: '#D9E8C6',
-    fontSize: 12,
-    fontWeight: '800',
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '900',
-    marginTop: 8,
+  heroIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  subtitle: {
+  heroTextWrap: {
+    flex: 1,
+  },
+  heroSubtitle: {
     color: '#C7DAD3',
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '700',
   },
-  count: {
-    color: '#FFFFFF',
-    fontSize: 56,
+  heroCount: {
+    color: colors.accent,
+    fontSize: 52,
     fontWeight: '900',
     marginTop: 2,
   },
+  heroLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+  },
+  heroWatermark: {
+    position: 'absolute',
+    right: -10,
+    bottom: -18,
+  },
   panel: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginTop: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    marginTop: spacing.lg,
     borderWidth: 1,
-    borderColor: '#D7E0DA',
+    borderColor: colors.border,
     overflow: 'hidden',
+    ...cardShadow,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   panelTitle: {
-    padding: 14,
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 17,
     fontWeight: '900',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5ECE8',
+  },
+  panelUnderline: {
+    width: 30,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    marginTop: 6,
+  },
+  panelCountBadge: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  panelCountText: {
+    color: colors.accentDark,
+    fontWeight: '900',
+    fontSize: 13,
+  },
+  emptyWrap: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   empty: {
-    color: '#6B7973',
-    padding: 18,
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  emptyText: {
+    color: colors.textMuted,
     textAlign: 'center',
   },
   row: {
-    minHeight: 64,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEF2F0',
+    borderBottomColor: colors.borderLight,
   },
   avatar: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
-    backgroundColor: '#CBE0B8',
+    height: 42,
+    width: 42,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#153D36',
+    color: colors.accentDark,
     fontWeight: '900',
   },
   info: {
@@ -120,12 +203,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   name: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '800',
   },
   phone: {
-    color: '#65736D',
+    color: colors.textSecondary,
     marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

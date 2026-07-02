@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as SQLite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
@@ -5,6 +6,7 @@ import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet,
 import { getMonthlyReport } from '../lib/db';
 import { money, monthFromKey, monthKey, normalize, statusLabels } from '../lib/format';
 import { shareLabourReport } from '../lib/pdf';
+import { colors, radius, spacing, cardShadow, statusColors } from '../theme';
 import { ClientProfile, Labour, ReportRow, ReportTotals } from '../types';
 
 type Props = {
@@ -69,14 +71,22 @@ export function ReportsScreen({ db, labours, client }: Props) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.selector}>
-        <Text style={styles.title}>Monthly Report</Text>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search labour name or number"
-          placeholderTextColor="#6F7F79"
-          style={styles.input}
-        />
+        <View style={styles.titleRow}>
+          <View style={styles.titleIconWrap}>
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>Monthly Report</Text>
+        </View>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search labour name or number"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+          />
+        </View>
         <FlatList
           horizontal
           data={filteredLabours}
@@ -88,6 +98,11 @@ export function ReportsScreen({ db, labours, client }: Props) {
               style={[styles.labourPill, selectedLabour?.id === item.id && styles.labourPillActive]}
               onPress={() => setSelectedLabour(item)}
             >
+              <Ionicons
+                name="person"
+                size={13}
+                color={selectedLabour?.id === item.id ? '#FFFFFF' : colors.textSecondary}
+              />
               <Text style={[styles.labourPillText, selectedLabour?.id === item.id && styles.labourPillTextActive]} numberOfLines={1}>
                 {item.name}
               </Text>
@@ -108,16 +123,22 @@ export function ReportsScreen({ db, labours, client }: Props) {
             onPress={shareReport}
             disabled={!selectedLabour}
           >
+            <Ionicons name="document-attach-outline" size={16} color="#FFFFFF" />
             <Text style={styles.shareText}>PDF</Text>
           </Pressable>
         </View>
 
         <Pressable style={styles.dateButton} onPress={() => setShowMonthCalendar(true)}>
-          <View>
-            <Text style={styles.dateLabel}>Report Month</Text>
-            <Text style={styles.dateValue}>{month}</Text>
+          <View style={styles.dateButtonLeft}>
+            <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+            <View>
+              <Text style={styles.dateLabel}>Report Month</Text>
+              <Text style={styles.dateValue}>{month}</Text>
+            </View>
           </View>
-          <Text style={styles.calendarText}>Choose</Text>
+          <View style={styles.chooseChip}>
+            <Text style={styles.calendarText}>Choose</Text>
+          </View>
         </Pressable>
         {showMonthCalendar && (
           <DateTimePicker
@@ -130,11 +151,17 @@ export function ReportsScreen({ db, labours, client }: Props) {
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryLabel}>Working Days</Text>
+            <View style={styles.summaryIconRow}>
+              <Ionicons name="calendar-clear-outline" size={14} color={colors.primary} />
+              <Text style={styles.summaryLabel}>Working Days</Text>
+            </View>
             <Text style={styles.summaryValue}>{totals.days}</Text>
           </View>
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryLabel}>Advance</Text>
+            <View style={styles.summaryIconRow}>
+              <Ionicons name="cash-outline" size={14} color={colors.primary} />
+              <Text style={styles.summaryLabel}>Advance</Text>
+            </View>
             <Text style={styles.summaryValue}>{money(totals.advance)}</Text>
           </View>
         </View>
@@ -142,20 +169,34 @@ export function ReportsScreen({ db, labours, client }: Props) {
 
       <View style={styles.tableWrap}>
         <View style={styles.tableHeader}>
-          <Text style={[styles.cell, styles.dateCell]}>Date</Text>
-          <Text style={[styles.cell, styles.statusCell]}>Attendance</Text>
-          <Text style={[styles.cell, styles.amountCell]}>Advance</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.dateCell]}>Date</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.statusCell]}>Attendance</Text>
+          <Text style={[styles.cell, styles.headerCell, styles.amountCell]}>Advance</Text>
         </View>
         <FlatList
           data={rows}
           keyExtractor={(item) => item.date}
           style={styles.tableList}
           contentContainerStyle={rows.length ? undefined : styles.tableEmptyWrap}
-          ListEmptyComponent={<Text style={styles.empty}>Select a labour to view the monthly report.</Text>}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="stats-chart-outline" size={26} color={colors.textMuted} />
+              <Text style={styles.emptyText}>Select a labour to view the monthly report.</Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.tableRow}>
               <Text style={[styles.cell, styles.dateCell]}>{item.date}</Text>
-              <Text style={[styles.cell, styles.statusCell]}>{item.status ? statusLabels[item.status] : '-'}</Text>
+              <Text
+                style={[
+                  styles.cell,
+                  styles.statusCell,
+                  styles.statusText,
+                  item.status ? { color: statusColors[item.status] } : null,
+                ]}
+              >
+                {item.status ? statusLabels[item.status] : '-'}
+              </Text>
               <Text style={[styles.cell, styles.amountCell]}>{item.advance ? money(item.advance) : '-'}</Text>
             </View>
           )}
@@ -168,147 +209,193 @@ export function ReportsScreen({ db, labours, client }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F3F6F1',
-    padding: 12,
+    backgroundColor: colors.background,
+    padding: spacing.md,
   },
   selector: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#D7E0DA',
-    padding: 10,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...cardShadow,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  titleIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '900',
-    marginBottom: 8,
   },
-  input: {
-    minHeight: 42,
-    borderRadius: 8,
+  searchWrap: {
+    minHeight: 44,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   labourPill: {
-    maxWidth: 150,
+    maxWidth: 160,
     minHeight: 36,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    justifyContent: 'center',
-    marginRight: 8,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: spacing.sm,
   },
   labourPillActive: {
-    backgroundColor: '#153D36',
-    borderColor: '#153D36',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   labourPillText: {
-    color: '#40534B',
+    color: colors.textSecondary,
     fontWeight: '800',
   },
   labourPillTextActive: {
     color: '#FFFFFF',
   },
   emptyInline: {
-    color: '#687871',
+    color: colors.textMuted,
     paddingVertical: 10,
   },
   reportCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#D7E0DA',
-    padding: 10,
-    marginTop: 10,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    ...cardShadow,
   },
   reportTopRow: {
     minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
   selectedInfo: {
     flex: 1,
     minWidth: 0,
   },
   metaLabel: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
   },
   selectedName: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 1,
   },
   selectedPhone: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 1,
   },
   dateButton: {
-    minHeight: 42,
-    borderRadius: 8,
+    minHeight: 46,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#CBD8D2',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    marginTop: 8,
+    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  dateButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   dateLabel: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
   },
   dateValue: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '900',
   },
+  chooseChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentLight,
+  },
   calendarText: {
-    color: '#153D36',
+    color: colors.accentDark,
     fontWeight: '900',
+    fontSize: 12,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   summaryBox: {
     flex: 1,
-    backgroundColor: '#EEF4EC',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    backgroundColor: colors.successBg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  summaryIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   summaryLabel: {
-    color: '#66756F',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
   },
   summaryValue: {
-    color: '#17231F',
+    color: colors.textPrimary,
     fontSize: 17,
     fontWeight: '900',
-    marginTop: 2,
+    marginTop: 4,
   },
   shareButton: {
-    width: 72,
+    minWidth: 76,
     minHeight: 42,
-    borderRadius: 8,
-    backgroundColor: '#153D36',
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
   },
   shareButtonDisabled: {
     backgroundColor: '#8FA19A',
@@ -319,32 +406,44 @@ const styles = StyleSheet.create({
   },
   tableWrap: {
     flex: 1,
-    marginTop: 10,
-    borderRadius: 8,
+    marginTop: spacing.sm,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#D7E0DA',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...cardShadow,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#DDE9E4',
+    backgroundColor: colors.chipInactiveBg,
+  },
+  headerCell: {
+    fontWeight: '900',
+    color: colors.textSecondary,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   tableList: {
     flex: 1,
   },
   tableRow: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E1E9E5',
+    borderBottomColor: colors.borderLight,
   },
   cell: {
-    minHeight: 34,
+    minHeight: 36,
     paddingHorizontal: 8,
-    paddingVertical: 7,
-    color: '#17231F',
+    paddingVertical: 8,
+    color: colors.textPrimary,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  statusText: {
+    fontWeight: '800',
   },
   dateCell: {
     flex: 1.05,
@@ -361,8 +460,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   empty: {
-    color: '#687871',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  emptyText: {
+    color: colors.textMuted,
     textAlign: 'center',
-    padding: 18,
   },
 });
