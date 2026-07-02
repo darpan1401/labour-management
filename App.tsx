@@ -46,6 +46,8 @@ const updateCheckConfig = {
   repo: 'labour-management',
 };
 
+const githubToken = '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';
+
 const pendingUpdateBuildKey = 'pending_update_build';
 
 const androidIntentFlags = {
@@ -633,9 +635,10 @@ async function fetchLatestAppUpdate(currentBuildNumber: number): Promise<AppUpda
   const response = await fetch(
     `https://api.github.com/repos/${updateCheckConfig.owner}/${updateCheckConfig.repo}/releases/latest`,
     {
-      headers: {
+        headers: {
         Accept: 'application/vnd.github+json',
-      },
+        Authorization: `Bearer ${githubToken}`,
+  },
     },
   );
 
@@ -652,7 +655,7 @@ async function fetchLatestAppUpdate(currentBuildNumber: number): Promise<AppUpda
 
   return {
     buildNumber: latestBuildNumber,
-    downloadUrl: apkAsset.browser_download_url,
+    downloadUrl: `https://api.github.com/repos/${updateCheckConfig.owner}/${updateCheckConfig.repo}/releases/assets/${apkAsset.id}`,
     assetName: String(apkAsset.name ?? 'app-update.apk'),
     tagName: String(release?.tag_name ?? ''),
   };
@@ -667,7 +670,24 @@ async function downloadAndInstallApk(downloadUrl: string) {
     await FileSystem.deleteAsync(localUri, { idempotent: true });
   }
 
-  const { uri } = await FileSystem.downloadAsync(downloadUrl, localUri);
+  const downloadResumable = FileSystem.createDownloadResumable(
+  downloadUrl,
+  localUri,
+  {
+    headers: {
+      Authorization: `Bearer ${githubToken}`,
+      Accept: 'application/octet-stream',
+    },
+  }
+);
+
+const result = await downloadResumable.downloadAsync();
+
+if (!result?.uri) {
+  throw new Error('Failed to download APK.');
+}
+
+const uri = result.uri;
 
   // Android needs a content:// URI (via FileProvider) to open a local file
   // for installation — a plain file:// path will be rejected on API 24+.
