@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMonthlyReport } from '../lib/db';
 import { money, monthFromKey, monthKey, normalize, statusLabels } from '../lib/format';
 import { shareLabourReport } from '../lib/pdf';
@@ -67,7 +67,7 @@ export function ReportsScreen({ db, labours, client }: Props) {
   }
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.selector}>
         <Text style={styles.title}>Monthly Report</Text>
         <TextInput
@@ -161,7 +161,7 @@ export function ReportsScreen({ db, labours, client }: Props) {
           )}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

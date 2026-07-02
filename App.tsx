@@ -4,7 +4,7 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   NewClientInput,
@@ -390,46 +390,51 @@ function ActivationScreen({
   }
 
   return (
-    <View style={[styles.activationScreen, { paddingTop: insets.top + 24, paddingBottom: Math.max(insets.bottom, 18) }]}>
+    <KeyboardAvoidingView
+      style={[styles.activationScreen, { paddingTop: insets.top + 24, paddingBottom: Math.max(insets.bottom, 18) }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <StatusBar style="light" />
-      <View style={styles.activationHeader}>
-        <Text style={styles.activationKicker}>Client Activation</Text>
-        <Text style={styles.activationTitle}>Labour Management</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.activationScrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.activationHeader}>
+          <Text style={styles.activationKicker}>Client Activation</Text>
+          <Text style={styles.activationTitle}>Crewmate</Text>
+        </View>
 
-      <View style={styles.activationBox}>
-        <Text style={styles.activationLabel}>Client ID</Text>
-        <TextInput
-          value={clientId}
-          onChangeText={setClientId}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="Enter client ID"
-          placeholderTextColor="#6F7F79"
-          style={styles.activationInput}
-        />
+        <View style={styles.activationBox}>
+          <Text style={styles.activationLabel}>Client ID</Text>
+          <TextInput
+            value={clientId}
+            onChangeText={setClientId}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Enter client ID"
+            placeholderTextColor="#6F7F79"
+            style={styles.activationInput}
+          />
 
-        <Text style={styles.activationLabel}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!passwordVisible}
-          placeholder="Enter password"
-          placeholderTextColor="#6F7F79"
-          style={styles.activationInput}
-        />
-        <Pressable style={styles.passwordToggle} onPress={() => setPasswordVisible((visible) => !visible)}>
-          <Text style={styles.passwordToggleText}>{passwordVisible ? 'Hide Password' : 'Show Password'}</Text>
-        </Pressable>
+          <Text style={styles.activationLabel}>Password</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordVisible}
+            placeholder="Enter password"
+            placeholderTextColor="#6F7F79"
+            style={styles.activationInput}
+          />
+          <Pressable style={styles.passwordToggle} onPress={() => setPasswordVisible((visible) => !visible)}>
+            <Text style={styles.passwordToggleText}>{passwordVisible ? 'Hide Password' : 'Show Password'}</Text>
+          </Pressable>
 
-        <Pressable
-          style={[styles.activateButton, (!dbReady || saving) && styles.activateButtonDisabled]}
-          onPress={activate}
-          disabled={!dbReady || saving}
-        >
-          <Text style={styles.activateText}>{saving ? 'Activating...' : 'Activate App'}</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            style={[styles.activateButton, (!dbReady || saving) && styles.activateButtonDisabled]}
+            onPress={activate}
+            disabled={!dbReady || saving}
+          >
+            <Text style={styles.activateText}>{saving ? 'Activating...' : 'Activate App'}</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
 
       {saving ? (
         <View style={styles.activationLoadingOverlay} pointerEvents="auto">
@@ -439,7 +444,7 @@ function ActivationScreen({
           </View>
         </View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -723,35 +728,48 @@ function AddUserModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <View style={styles.profileCard}>
-          <View style={styles.profileHeader}>
-            <Text style={styles.profileTitle}>Add User</Text>
-            <Pressable onPress={onClose}>
-              <Text style={styles.closeText}>Close</Text>
-            </Pressable>
-          </View>
+        <KeyboardAvoidingView style={styles.modalKeyboardWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.profileCard}>
+              <View style={styles.profileHeader}>
+                <Text style={styles.profileTitle}>Add User</Text>
+                <Pressable onPress={onClose}>
+                  <Text style={styles.closeText}>Close</Text>
+                </Pressable>
+              </View>
 
-          <TextInput value={userId} onChangeText={setUserId} placeholder="User Id" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-          <TextInput value={loginId} onChangeText={setLoginId} placeholder="Login ID" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-          <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-          <TextInput value={contractorName} onChangeText={setContractorName} placeholder="Contractor Name" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-          <TextInput value={phoneNumber} onChangeText={setPhoneNumber} placeholder="Phone Number" placeholderTextColor="#6F7F79" keyboardType="phone-pad" style={styles.addUserInput} />
-          <TextInput value={contractorTitle} onChangeText={setContractorTitle} placeholder="Contractor Title" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+              <TextInput value={userId} onChangeText={setUserId} placeholder="User Id" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+              <TextInput value={loginId} onChangeText={setLoginId} placeholder="Login ID" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
+              <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
+              <TextInput value={contractorName} onChangeText={setContractorName} placeholder="Contractor Name" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+              <TextInput value={phoneNumber} onChangeText={setPhoneNumber} placeholder="Phone Number" placeholderTextColor="#6F7F79" keyboardType="phone-pad" style={styles.addUserInput} />
+              <TextInput value={contractorTitle} onChangeText={setContractorTitle} placeholder="Contractor Title" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
 
-          <View style={styles.adminToggleRow}>
-            <Text style={active ? styles.adminActive : styles.adminInactive}>Active: {active ? '1' : '0'}</Text>
-            <Switch
-              value={active}
-              onValueChange={setActive}
-              trackColor={{ false: '#E8C5BF', true: '#BFD9C8' }}
-              thumbColor={active ? '#1E7A42' : '#B7352C'}
-            />
-          </View>
+              <View style={styles.adminToggleRow}>
+                <Text style={active ? styles.adminActive : styles.adminInactive}>Active: {active ? '1' : '0'}</Text>
+                <Switch
+                  value={active}
+                  onValueChange={setActive}
+                  trackColor={{ false: '#E8C5BF', true: '#BFD9C8' }}
+                  thumbColor={active ? '#1E7A42' : '#B7352C'}
+                />
+              </View>
 
-          <Pressable style={[styles.profileAction, saving && styles.activateButtonDisabled]} onPress={submit} disabled={saving}>
-            <Text style={styles.profileActionText}>{saving ? 'Adding...' : 'Add Client User'}</Text>
-          </Pressable>
-        </View>
+              <Pressable style={[styles.profileAction, saving && styles.activateButtonDisabled]} onPress={submit} disabled={saving}>
+                <Text style={styles.profileActionText}>{saving ? 'Adding...' : 'Add Client User'}</Text>
+              </Pressable>
+
+              {saving ? (
+                <View style={styles.addUserLoadingOverlay} pointerEvents="auto">
+                  <View style={styles.activationLoadingCard}>
+                    <ActivityIndicator size="large" color="#153D36" />
+                    <Text style={styles.activationLoadingText}>Adding user...</Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -975,6 +993,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 18,
   },
+  modalKeyboardWrap: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   profileCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
@@ -1116,6 +1141,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#153D36',
     paddingHorizontal: 18,
+  },
+  activationScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
   },
   activationHeader: {
@@ -1162,6 +1190,14 @@ const styles = StyleSheet.create({
     color: '#153D36',
     fontWeight: '900',
     marginTop: 12,
+  },
+  addUserLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(243, 246, 241, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    borderRadius: 8,
   },
   activationLabel: {
     color: '#17231F',

@@ -2,7 +2,7 @@ import * as Contacts from 'expo-contacts';
 import * as SQLite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addLabour, deleteLabour, getAttendanceForDate, saveAttendance } from '../lib/db';
 import { attendanceOptions, cleanPhone, dateFromKey, formatDate, normalize } from '../lib/format';
@@ -125,7 +125,7 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
   }
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.topBar}>
         <TextInput
           value={search}
@@ -161,7 +161,10 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
       />
 
       <Modal visible={contactModal} animationType="slide" onRequestClose={() => setContactModal(false)}>
-        <View style={[styles.modal, { paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <KeyboardAvoidingView
+          style={[styles.modal, { paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 14) }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Contact</Text>
             <Pressable onPress={() => setContactModal(false)}>
@@ -186,60 +189,62 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
               </Pressable>
             )}
           />
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={Boolean(markingLabour)} transparent animationType="fade" onRequestClose={() => setMarkingLabour(null)}>
         <View style={styles.backdrop}>
-          <View style={styles.markingBox}>
-            <Text style={styles.modalTitle}>{markingLabour?.name}</Text>
-            <Text style={styles.phone}>{markingLabour?.phone}</Text>
-            <Pressable style={styles.dateButton} onPress={() => setShowMarkCalendar(true)}>
-              <View>
-                <Text style={styles.dateLabel}>Attendance Date</Text>
-                <Text style={styles.dateValue}>{markDate}</Text>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.markingBox}>
+              <Text style={styles.modalTitle}>{markingLabour?.name}</Text>
+              <Text style={styles.phone}>{markingLabour?.phone}</Text>
+              <Pressable style={styles.dateButton} onPress={() => setShowMarkCalendar(true)}>
+                <View>
+                  <Text style={styles.dateLabel}>Attendance Date</Text>
+                  <Text style={styles.dateValue}>{markDate}</Text>
+                </View>
+                <Text style={styles.calendarIcon}>Choose</Text>
+              </Pressable>
+              {showMarkCalendar && (
+                <DateTimePicker
+                  value={dateFromKey(markDate)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleMarkDateChange}
+                />
+              )}
+              <View style={styles.optionWrap}>
+                {attendanceOptions.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.option, status === option.value && styles.optionActive]}
+                    onPress={() => setStatus(option.value)}
+                  >
+                    <Text style={[styles.optionText, status === option.value && styles.optionTextActive]}>{option.label}</Text>
+                  </Pressable>
+                ))}
               </View>
-              <Text style={styles.calendarIcon}>Choose</Text>
-            </Pressable>
-            {showMarkCalendar && (
-              <DateTimePicker
-                value={dateFromKey(markDate)}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleMarkDateChange}
+              <TextInput
+                value={advance}
+                onChangeText={setAdvance}
+                keyboardType="numeric"
+                placeholder="Advance amount"
+                placeholderTextColor="#6F7F79"
+                style={styles.input}
               />
-            )}
-            <View style={styles.optionWrap}>
-              {attendanceOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[styles.option, status === option.value && styles.optionActive]}
-                  onPress={() => setStatus(option.value)}
-                >
-                  <Text style={[styles.optionText, status === option.value && styles.optionTextActive]}>{option.label}</Text>
+              <View style={styles.actionRow}>
+                <Pressable style={styles.cancelButton} onPress={() => setMarkingLabour(null)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
-              ))}
+                <Pressable style={styles.saveButton} onPress={saveMarking}>
+                  <Text style={styles.saveText}>Save</Text>
+                </Pressable>
+              </View>
             </View>
-            <TextInput
-              value={advance}
-              onChangeText={setAdvance}
-              keyboardType="numeric"
-              placeholder="Advance amount"
-              placeholderTextColor="#6F7F79"
-              style={styles.input}
-            />
-            <View style={styles.actionRow}>
-              <Pressable style={styles.cancelButton} onPress={() => setMarkingLabour(null)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.saveButton} onPress={saveMarking}>
-                <Text style={styles.saveText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -340,6 +345,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F6F1',
     padding: 14,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   modalHeader: {
     flexDirection: 'row',

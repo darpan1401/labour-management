@@ -56,7 +56,7 @@ jobs:
           app.expo.extra.appBuildNumber = String(buildNumber);
 
           fs.writeFileSync('app.json', `${JSON.stringify(app, null, 2)}\n`);
-          fs.appendFileSync(process.env.GITHUB_ENV, `APK_NAME=labour-management.apk\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APK_NAME=Crewmate.apk\n`);
           fs.appendFileSync(process.env.GITHUB_ENV, `RELEASE_TAG=android-v${version}-${buildNumber}\n`);
           NODE
 
@@ -78,5 +78,5 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$APK_NAME" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Labour Management $RELEASE_TAG" \
+            --title "Crewmate $RELEASE_TAG" \
             --notes "Please install the Latest App"
