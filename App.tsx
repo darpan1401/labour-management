@@ -430,6 +430,15 @@ function ActivationScreen({
           <Text style={styles.activateText}>{saving ? 'Activating...' : 'Activate App'}</Text>
         </Pressable>
       </View>
+
+      {saving ? (
+        <View style={styles.activationLoadingOverlay} pointerEvents="auto">
+          <View style={styles.activationLoadingCard}>
+            <ActivityIndicator size="large" color="#153D36" />
+            <Text style={styles.activationLoadingText}>Logging in...</Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1127,6 +1136,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 16,
+  },
+  activationLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(243, 246, 241, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  activationLoadingCard: {
+    minWidth: 160,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 22,
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  activationLoadingText: {
+    color: '#153D36',
+    fontWeight: '900',
+    marginTop: 12,
   },
   activationLabel: {
     color: '#17231F',
