@@ -60,9 +60,9 @@ function buildReportHtml(client: ClientProfile, labour: Labour, month: string, r
         </style>
       </head>
       <body>
-        <div class="brand">${escapeHtml(client.contractorName)}</div>
+        <div class="brand">${escapeHtml(client.contractorTitle)}</div>
         <div class="meta">
-          <strong>CONTRACTOR TITLE:</strong> ${escapeHtml(client.contractorTitle)}<br />
+          <strong>CONTRACTOR NAME:</strong> ${escapeHtml(client.contractorName)}<br />
           <strong>CONTRACTOR PHONE:</strong> ${escapeHtml(client.phoneNumber || '-')}<br />
           <strong>LABOUR NAME:</strong> ${escapeHtml(labour.name)}<br />
           <strong>LABOUR NUMBER:</strong> ${escapeHtml(labour.phone)}<br />

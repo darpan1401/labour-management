@@ -225,6 +225,7 @@ export function LaboursScreen({ db, labours, onChanged }: Props) {
               onChangeText={setAdvance}
               keyboardType="numeric"
               placeholder="Advance amount"
+              placeholderTextColor="#6F7F79"
               style={styles.input}
             />
             <View style={styles.actionRow}>
@@ -409,6 +410,7 @@ const styles = StyleSheet.create({
     borderColor: '#CBD8D2',
     paddingHorizontal: 12,
     marginTop: 12,
+    color: '#153D36',
   },
   optionWrap: {
     flexDirection: 'row',
