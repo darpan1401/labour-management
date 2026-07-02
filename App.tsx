@@ -564,12 +564,12 @@ function AddUserModal({
             </Pressable>
           </View>
 
-          <TextInput value={userId} onChangeText={setUserId} placeholder="user_id" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-          <TextInput value={loginId} onChangeText={setLoginId} placeholder="login_id" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-          <TextInput value={password} onChangeText={setPassword} placeholder="password" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
-          <TextInput value={contractorName} onChangeText={setContractorName} placeholder="contractor_name" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
-          <TextInput value={phoneNumber} onChangeText={setPhoneNumber} placeholder="phone_number" placeholderTextColor="#6F7F79" keyboardType="phone-pad" style={styles.addUserInput} />
-          <TextInput value={contractorTitle} onChangeText={setContractorTitle} placeholder="contractor_title" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+          <TextInput value={userId} onChangeText={setUserId} placeholder="User Id" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+          <TextInput value={loginId} onChangeText={setLoginId} placeholder="Login ID" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
+          <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#6F7F79" autoCapitalize="none" style={styles.addUserInput} />
+          <TextInput value={contractorName} onChangeText={setContractorName} placeholder="Contractor Name" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
+          <TextInput value={phoneNumber} onChangeText={setPhoneNumber} placeholder="Phone Number" placeholderTextColor="#6F7F79" keyboardType="phone-pad" style={styles.addUserInput} />
+          <TextInput value={contractorTitle} onChangeText={setContractorTitle} placeholder="Contractor Title" placeholderTextColor="#6F7F79" style={styles.addUserInput} />
 
           <View style={styles.adminToggleRow}>
             <Text style={active ? styles.adminActive : styles.adminInactive}>Active: {active ? '1' : '0'}</Text>
